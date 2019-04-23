@@ -12,12 +12,22 @@
 #define FPS 16
 #define FRAME_TIME_MICROS (1000000/FPS)
 #define OFFSET_MICROS 850
+#define LOWTEMP 15.0
+#define HIGHTEMP 40.0
 
 bool checkDup(float oldFrame[],float newFrame[])
 {
     if(oldFrame[0] != newFrame[0]) return true;
     else if (oldFrame[1] != newFrame[128]) return true;
     else return false;
+}
+
+
+int quantize(float f)
+{
+    if(f < LOWTEMP) return 0;
+    else if (f > HIGHTEMP) return 255;
+    else return (f - LOWTEMP)/(HIGHTEMP - LOWTEMP) * 255;
 }
 
 int main ()
@@ -50,9 +60,8 @@ int main ()
 
     for(int count = 0; count < 300; count++)
     {
-        //fb_init();
+
     auto loop_start = std::chrono::system_clock::now();
-    std::cout << loop_start.time_since_epoch().count() << std::endl;
         for(int ii = 0; ii < 16; ii++)
         {
             auto start = std::chrono::system_clock::now();
@@ -67,22 +76,22 @@ int main ()
             MLX90640_BadPixelsCorrection((&mlx90640)->brokenPixels, mlx90640To, 1, &mlx90640);
             MLX90640_BadPixelsCorrection((&mlx90640)->outlierPixels, mlx90640To, 1, &mlx90640);
             for(int count = 0; count< 768; count++){
-                std::cout << mlx90640To[count] << " ";
+                char buffer[2];
+                sprintf(buffer, "%.2x", quantize(mlx90640To[count]));
+                std::cout << buffer;
             }
             
             auto end = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-            // std::cout << elapsed.count() << std::endl;
-            // std::cout << "Waiting for: " << frame_time.count() - elapsed.count() << " ms" << std::endl;
             std::this_thread::sleep_for(std::chrono::microseconds(frame_time - elapsed));
         }
-    std::cout << std::endl;
-    std::cout << 1 << std::endl;
-    auto loop_end = std::chrono::system_clock::now();
-    // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(loop_end - loop_start).count() << std::endl;
-    }
     
-    // outfile.close();
+    std::cout<< ',' 
+        << 0 << ',' 
+        << std::chrono::duration_cast<std::chrono::milliseconds>(loop_start.time_since_epoch()).count()
+        << std::endl;
+
+    }
 	return 0;
 }
