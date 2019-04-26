@@ -15,19 +15,23 @@
 #define LOWTEMP 15.0
 #define HIGHTEMP 40.0
 
-bool checkDup(float oldFrame[],float newFrame[])
-{
-    if(oldFrame[0] != newFrame[0]) return true;
-    else if (oldFrame[1] != newFrame[128]) return true;
-    else return false;
-}
 
-
+// Maps thermal values to a single byte, consistant with what is in 
+// the python code
 int quantize(float f)
 {
     if(f < LOWTEMP) return 0;
     else if (f > HIGHTEMP) return 255;
     else return (f - LOWTEMP)/(HIGHTEMP - LOWTEMP) * 255;
+}
+
+int hit(float *temp)
+{
+    for(int ii = 0; ii < 764; ii+=4)
+    {
+        if(*(temp + ii) > 27.0) return 1;
+    }
+    return 0;
 }
 
 int main ()
@@ -43,6 +47,7 @@ int main ()
     float eTa;
     static uint16_t data[768*sizeof(float)];
     int frame_counter = 0;
+    int hitMarker = 0;
 
     auto frame_time = std::chrono::microseconds(FRAME_TIME_MICROS + OFFSET_MICROS);
     // std::cout << frame_time.count() << std::endl;
@@ -58,7 +63,7 @@ int main ()
     MLX90640_DumpEE(MLX_I2C_ADDR, eeMLX90640);
     MLX90640_ExtractParameters(eeMLX90640, &mlx90640);
 
-    for(int count = 0; count < 300; count++)
+    while(true)
     {
 
     auto loop_start = std::chrono::system_clock::now();
@@ -75,23 +80,28 @@ int main ()
             
             MLX90640_BadPixelsCorrection((&mlx90640)->brokenPixels, mlx90640To, 1, &mlx90640);
             MLX90640_BadPixelsCorrection((&mlx90640)->outlierPixels, mlx90640To, 1, &mlx90640);
+
+            // Check for the hitmarker
+            if(!hitMarker) hitMarker = hit(mlx90640To);
+
+            // Quantize the temperatures and write the hex of the byte to the stdout
             for(int count = 0; count< 768; count++){
                 char buffer[2];
                 sprintf(buffer, "%.2x", quantize(mlx90640To[count]));
                 std::cout << buffer;
             }
             
+            // Figure out how long to wait
             auto end = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
             std::this_thread::sleep_for(std::chrono::microseconds(frame_time - elapsed));
         }
-    
-    std::cout<< ',' 
-        << 0 << ',' 
-        << std::chrono::duration_cast<std::chrono::milliseconds>(loop_start.time_since_epoch()).count()
-        << std::endl;
 
+        // Send the frames, the hit marker and timestamp to the python code
+        std::cout<< ',' 
+            << hitMarker << ',' 
+            << std::chrono::duration_cast<std::chrono::milliseconds>(loop_start.time_since_epoch()).count()
+            << std::endl;
     }
 	return 0;
 }

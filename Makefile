@@ -4,7 +4,7 @@ SRC_DIR = examples/src/
 BUILD_DIR = examples/
 LIB_DIR = $(SRC_DIR)lib/
 
-examples = testChrono 
+examples = mlx640Single 
 examples_objects = $(addsuffix .o,$(addprefix $(SRC_DIR), $(examples)))
 examples_output = $(addprefix $(BUILD_DIR), $(examples))
 
@@ -33,7 +33,7 @@ examples/src/lib/interpolate.o : CC=$(CXX) -std=c++11
 
 examples/src/sdlscale.o : CXXFLAGS+=`sdl2-config --cflags --libs`
 
-$(BUILD_DIR)testChrono: $(SRC_DIR)testChrono.o libMLX90640_API.a
+$(BUILD_DIR)mlx640Single: $(SRC_DIR)mlx640Single.o libMLX90640_API.a
 	$(CXX) -L/home/pi/mlx90640-library $^ -o $@ $(I2C_LIBS)
 
 bcm2835-1.55.tar.gz:	
